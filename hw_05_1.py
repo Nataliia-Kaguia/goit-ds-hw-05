@@ -1,81 +1,88 @@
+# 0. Імпорт бібліотек
 import pandas as pd
 import numpy as np
+import urllib.parse
+import seaborn as sns
 import matplotlib.pyplot as plt
-from urllib.parse import quote
 
-# 1. Кодуємо URL
-base_url = "https://uk.wikipedia.org/wiki/Населення_України"
-encoded_url = quote(base_url, safe=':/')
+%matplotlib inline
 
-# 2. Завантажуємо таблиці
-tables = pd.read_html(encoded_url)
-print(f"Знайдено таблиць: {len(tables)}")
+# 1. Завантаження даних з Вікіпедії
+url = "https://uk.wikipedia.org/wiki/Населення_України"
+encoded_url = urllib.parse.quote(url, safe=':/')
+df = pd.read_html(encoded_url, match="Коефіцієнт народжуваності в регіонах України")[0]
 
-# 3. Знаходимо таблицю з 2019 роком
-target_df = None
-for tbl in tables:
-    if any("2019" in str(col) for col in tbl.columns):
-        target_df = tbl
-        break
+# 2. Перші рядки
+print("Перші 5 рядків таблиці:")
+display(df.head())
 
-if target_df is None:
-    raise ValueError("Таблиця з 2019 роком не знайдена!")
+# 3. Розмір таблиці
+print(f"Кількість рядків та стовпців: {df.shape}")
 
-# 4. Чистимо назви колонок
-target_df.columns = [str(col).strip() for col in target_df.columns]
+# 4. Замінити "—" на NaN
+df = df.replace("—", np.nan)
 
-# 5. Знаходимо колонку за 2019 рік
-col_2019 = next(col for col in target_df.columns if "2019" in str(col))
+# 5. Типи стовпців
+print("\nТипи даних до перетворення:")
+print(df.dtypes)
 
-# 6. Перетворюємо дані в числовий формат
-target_df[col_2019] = (
-    target_df[col_2019]
-    .astype(str)
-    .str.replace(r"\s+", "", regex=True)
-    .str.replace("—", "", regex=False)
-    .str.replace(",", ".", regex=False)
-    .replace("", np.nan)  # ← замість pd.NA
-    .astype(float)
-)
+# 6. Перетворення на числові (крім першої колонки)
+for col in df.columns[1:]:
+    df[col] = (
+        df[col]
+        .astype(str)
+        .str.replace(",", ".", regex=False)
+    )
+    df[col] = pd.to_numeric(df[col], errors="coerce")
 
-# 7. Обчислюємо середнє та відбираємо регіони
-mean_2019 = target_df[col_2019].mean()
-above_avg = target_df[target_df[col_2019] > mean_2019]["Регіон"].tolist()
+print("\nТипи даних після перетворення:")
+print(df.dtypes)
 
-# 8. Вивід результатів
-print(f"\nСереднє значення у 2019: {mean_2019}")
-print("Регіони з народжуваністю вище середнього:", above_avg)
+# 7. Частка пропусків по колонках
+missing_ratio = df.isnull().sum() / len(df) * 100
+print("\nЧастка пропусків (%) по кожній колонці:")
+print(missing_ratio)
 
-# --- 📊 ВІЗУАЛІЗАЦІЇ ---
-# 1. Bar chart
-plt.figure(figsize=(10, 6))
-plt.bar(target_df["Регіон"], target_df[col_2019], color="skyblue", edgecolor="black")
-plt.axhline(mean_2019, color="red", linestyle="--", label=f"Середнє: {mean_2019:.2f}")
-plt.xticks(rotation=90)
-plt.ylabel("Народжуваність у 2019")
-plt.title("Народжуваність по регіонах України (2019)")
-plt.legend()
-plt.tight_layout()
-plt.show()
+# 8. Видалити останній рядок (по всій країні)
+df = df.iloc[:-1]
 
-# 2. Horizontal bar chart
-plt.figure(figsize=(10, 8))
-target_df_sorted = target_df.sort_values(col_2019)
-plt.barh(target_df_sorted["Регіон"], target_df_sorted[col_2019], color="lightgreen", edgecolor="black")
-plt.axvline(mean_2019, color="red", linestyle="--", label=f"Середнє: {mean_2019:.2f}")
+# 9. Регіони з народжуваністю 2019 вище середнього + графік
+avg_2019 = df["2019"].mean()
+above_avg_2019_df = df[df["2019"] > avg_2019]
+
+plt.figure(figsize=(10,5))
+sns.barplot(data=above_avg_2019_df, x="2019", y=df.columns[0], color="skyblue")
+plt.title("Регіони з народжуваністю вище середньої у 2019 році")
 plt.xlabel("Народжуваність у 2019")
-plt.title("Народжуваність по регіонах України (2019)")
-plt.legend()
-plt.tight_layout()
+plt.ylabel("Регіон")
 plt.show()
 
-# 3. Pie chart (вище/нижче середнього)
-above_count = len(above_avg)
-below_count = len(target_df) - above_count
-plt.figure(figsize=(6, 6))
-plt.pie([above_count, below_count],
-        labels=["Вище середнього", "Нижче середнього"],
-        autopct='%1.1f%%',
-        colors=["lightcoral", "lightblue"])
-plt.title("Частка регіонів з народжуваністю вище/нижче середнього (2019)")
+# 10. Найвища народжуваність у 2014 + порівняння з іншими (без FutureWarning)
+max_2014_idx = df["2014"].idxmax()
+max_2014_region = df.loc[max_2014_idx, df.columns[0]]
+
+# Малюємо через matplotlib, щоб повністю контролювати кольори
+plt.figure(figsize=(10, 6))
+bars = plt.barh(df[df.columns[0]], df["2014"], color="lightgray")
+
+# Підсвічуємо лідера
+bars[max_2014_idx].set_color("lightgreen")
+
+# Заголовок і підписи
+plt.title("Народжуваність у регіонах України (2014)")
+plt.xlabel("Народжуваність у 2014")
+plt.ylabel("Регіон")
+
+# Додаємо текст для лідера
+plt.text(df["2014"].max() + 0.05, max_2014_idx, f"Лідер: {max_2014_region}",
+         va="center", fontsize=10, color="green")
+
+plt.show()
+
+# 11. Стовпчикова діаграма народжуваності у 2019
+plt.figure(figsize=(12,6))
+sns.barplot(data=df, x="2019", y=df.columns[0], color="orange")
+plt.title("Коефіцієнт народжуваності по регіонах (2019)")
+plt.xlabel("Народжуваність у 2019")
+plt.ylabel("Регіон")
 plt.show()
