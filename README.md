@@ -1,4 +1,4 @@
-не знаю чому, але на гітхаб пушиться з колаб тільки два з трьох файлів.. тому додаю посилання до всіх трьох:
-https://colab.research.google.com/drive/11pueqarZzkSmMJEutpl8oKqpD5cvF2gK - 1
-https://colab.research.google.com/drive/1_zOliPAWY1QbTxokoNhrBTstJowwXlw1 - 2
-https://colab.research.google.com/drive/1bFVCunBUob7tfWogYN52ECPyfOwl0Z2W - 3
+про всяк випадок продублюю посилання на оновленні файли:
+https://colab.research.google.com/gist/Nataliia-Kaguia/c240f1f80690982731be1abdce12ad78/hw_05_1.ipynb - 1
+https://colab.research.google.com/gist/Nataliia-Kaguia/c91e410e230e933f75bf4ce0d8a8061f/hw_05_2.ipynb - 2
+https://colab.research.google.com/gist/Nataliia-Kaguia/b85c6bc29d40fa9b3159a4940fb41ba6/hw_05_3.ipynb - 3
