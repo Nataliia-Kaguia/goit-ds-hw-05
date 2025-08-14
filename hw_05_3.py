@@ -1,94 +1,100 @@
-import kagglehub
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
+import seaborn as sns
+import kagglehub
 
-# 1. Завантаження датасету з Kaggle
-print("Завантаження датасету...")
-dataset_path = kagglehub.dataset_download(
-    "sootersaalu/amazon-top-50-bestselling-books-2009-2019"
-)
+# Завантаження датасету з Kaggle
+path = kagglehub.dataset_download("sootersaalu/amazon-top-50-bestselling-books-2009-2019")
+df = pd.read_csv(f"{path}/bestsellers with categories.csv")
 
-# 2. Формування повного шляху до файлу
-file_path = os.path.join(dataset_path, "bestsellers with categories.csv")
+# Оновлення назв колонок
+df.columns = ['name', 'author', 'user_rating', 'reviews', 'price', 'year', 'genre']
 
-if not os.path.exists(file_path):
-    raise FileNotFoundError(f"Файл не знайдено: {file_path}")
+# 1. Перевірка пропусків
+print(df.isna().sum())
 
-# 3. Читання CSV
-df = pd.read_csv(file_path)
-print("\nПерші 5 рядків датасету:")
-print(df.head())
+# 2. Унікальні жанри
+print(df['genre'].unique())
 
-# 4. Загальна інформація
-print("\nІнформація про датафрейм:")
-print(df.info())
-
-# 5. Мін/макс ціни
-print("\nМінімальна ціна:", df["Price"].min())
-print("Максимальна ціна:", df["Price"].max())
-
-# 6. Мін/макс відгуків
-print("\nМінімальна кількість відгуків:", df["Reviews"].min())
-print("Максимальна кількість відгуків:", df["Reviews"].max())
-
-# 7. Середній рейтинг по категоріях
-avg_rating = df.groupby("Genre")["User Rating"].mean()
-print("\nСередній рейтинг по категоріях:")
-print(avg_rating)
-
-# 8. Книги з рейтингом 5.0
-best_books = df[df["User Rating"] == 5.0]
-print("\nКниги з ідеальним рейтингом 5.0:")
-print(best_books[["Name", "Author", "Year", "Price"]])
-
-# 9. Топ-5 авторів за кількістю книг
-top_authors = df["Author"].value_counts().head(5)
-print("\nТоп-5 авторів за кількістю книг:")
-print(top_authors)
-
-# 10. Книги дорожчі за 30
-expensive_books = df[df["Price"] > 30]
-print("\nКниги дорожчі за $30:")
-print(expensive_books[["Name", "Author", "Price"]])
-
-# ==== ГРАФІКИ ====
-
-# Графік 1: Розподіл цін
-plt.figure(figsize=(8,5))
-df["Price"].hist(bins=20, color="skyblue", edgecolor="black")
+# 3. Розподіл цін
+plt.figure(figsize=(8, 5))
+sns.histplot(df['price'], bins=20, color='skyblue')
 plt.title("Розподіл цін книг")
-plt.xlabel("Ціна")
-plt.ylabel("Кількість")
-plt.grid(axis='y', alpha=0.75)
 plt.show()
 
-# Графік 2: Розподіл користувацьких рейтингів
-plt.figure(figsize=(8,5))
-df["User Rating"].hist(bins=10, color="lightgreen", edgecolor="black")
-plt.title("Розподіл рейтингів")
-plt.xlabel("Рейтинг")
-plt.ylabel("Кількість книг")
-plt.grid(axis='y', alpha=0.75)
+# Статистика по цінах
+print("Максимальна ціна:", df['price'].max())
+print("Мінімальна ціна:", df['price'].min())
+print("Середня ціна:", df['price'].mean())
+print("Медіанна ціна:", df['price'].median())
+
+# Пошук і сортування
+max_rating = df['user_rating'].max()
+print("Найвищий рейтинг:", max_rating)
+print("Кількість книг з таким рейтингом:", (df['user_rating'] == max_rating).sum())
+
+max_reviews_book = df.loc[df['reviews'].idxmax()]
+print("Книга з найбільшою кількістю відгуків:", max_reviews_book['name'])
+
+# Найдорожчі книги 2015 року
+plt.figure(figsize=(14, 10))
+sns.barplot(
+    data=books_2015.sort_values("price", ascending=False),
+    x="price", y="name", hue="name", palette="viridis", legend=False
+)
+plt.title("Найдорожчі книги 2015 року", fontsize=16)
+plt.xlabel("Ціна", fontsize=12)
+plt.ylabel("Назва книги", fontsize=12)
+plt.yticks(fontsize=9)  # зменшення шрифту для підписів
+plt.xticks(fontsize=10)
+plt.tight_layout()
 plt.show()
 
-# Графік 3: Середня ціна по жанрах
-avg_price_by_genre = df.groupby("Genre")["Price"].mean()
-avg_price_by_genre.plot(kind="bar", color=["orange", "purple"], figsize=(6,4))
-plt.title("Середня ціна по жанрах")
-plt.ylabel("Середня ціна")
+# Fiction 2010 року
+fiction_2010 = df[(df['genre'] == 'Fiction') & (df['year'] == 2010)]
+print("Кількість Fiction 2010:", fiction_2010.shape[0])
+
+# Рейтинг 4.9 у 2010 та 2011
+rating_49 = df[(df['user_rating'] == 4.9) & (df['year'].isin([2010, 2011]))]
+print("Кількість книг з рейтингом 4.9 у 2010-2011:", rating_49.shape[0])
+
+# Сортування 2015 року < 8$
+cheap_books_2015 = books_2015[books_2015['price'] < 8].sort_values("price")
+print("Остання книга у списку дешевих 2015:", cheap_books_2015.iloc[-1]['name'])
+
+# Агрегування
+agg_prices = df.groupby('genre')['price'].agg(['max', 'min'])
+print(agg_prices)
+
+# Кількість книг на автора
+author_books = df.groupby('author')['name'].count().reset_index(name='book_count')
+print("Розмірність:", author_books.shape)
+top_author = author_books.loc[author_books['book_count'].idxmax()]
+print("Автор з найбільшою кількістю книг:", top_author['author'], "-", top_author['book_count'])
+
+# Середній рейтинг на автора
+author_rating = df.groupby('author')['user_rating'].mean().reset_index(name='avg_rating')
+min_rating_author = author_rating.loc[author_rating['avg_rating'].idxmin()]
+print("Мінімальний середній рейтинг у:", min_rating_author['author'], "-", min_rating_author['avg_rating'])
+
+# Топ-10 авторів за кількістю книг
+top_authors = merged_df.sort_values("book_count", ascending=False).head(10)
+
+plt.figure(figsize=(12, 8))
+sns.barplot(
+    data=top_authors.reset_index(),
+    x="book_count", 
+    y="author", 
+    hue="author", 
+    dodge=False, 
+    palette="coolwarm",
+    legend=False
+)
+plt.title("Топ-10 авторів за кількістю книг у рейтингу Топ-50", fontsize=16)
+plt.xlabel("Кількість книг", fontsize=12)
+plt.ylabel("Автор", fontsize=12)
+plt.yticks(fontsize=10)
+plt.xticks(fontsize=10)
+plt.tight_layout()
 plt.show()
 
-# Графік 4: Кількість книг по роках
-df["Year"].value_counts().sort_index().plot(kind="bar", figsize=(10,5), color="teal")
-plt.title("Кількість книг по роках")
-plt.xlabel("Рік")
-plt.ylabel("Кількість книг")
-plt.show()
-
-# Графік 5: Топ-10 авторів
-df["Author"].value_counts().head(10).plot(kind="barh", figsize=(8,6), color="coral")
-plt.title("Топ-10 авторів за кількістю книг")
-plt.xlabel("Кількість книг")
-plt.gca().invert_yaxis()
-plt.show()
